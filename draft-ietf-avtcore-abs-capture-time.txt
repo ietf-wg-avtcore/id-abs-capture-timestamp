@@ -4,12 +4,12 @@
 
 Audio/Video Transport Core Maintenance                     H. Alvestrand
 Internet-Draft                                                    Google
-Intended status: Informational                           9 December 2024
-Expires: 12 June 2025
+Intended status: Informational                           5 February 2025
+Expires: 9 August 2025
 
 
             Absolute Capture Timestamp RTP header extension
-            draft-alvestrand-avtcore-abs-capture-time-latest
+               draft-ietf-avtcore-abs-capture-time-latest
 
 Abstract
 
@@ -23,11 +23,11 @@ About This Document
 
    This note is to be removed before publishing as an RFC.
 
-   The latest revision of this draft can be found at
-   https://alvestrand.github.io/id-abs-capture-timestamp/draft-
-   alvestrand-avtcore-abs-capture-timestamp.html.  Status information
-   for this document may be found at https://datatracker.ietf.org/doc/
-   draft-alvestrand-avtcore-abs-capture-time/.
+   The latest revision of this draft can be found at https://ietf-wg-
+   avtcore.github.io/id-abs-capture-timestamp/draft-ietf-avtcore-abs-
+   capture-timestamp.html.  Status information for this document may be
+   found at https://datatracker.ietf.org/doc/draft-ietf-avtcore-abs-
+   capture-time/.
 
    Discussion of this document takes place on the Audio/Video Transport
    Core Maintenance Working Group mailing list (mailto:avt@ietf.org),
@@ -35,7 +35,7 @@ About This Document
    Subscribe at https://www.ietf.org/mailman/listinfo/avt/.
 
    Source for this draft and an issue tracker can be found at
-   https://github.com/alvestrand/id-abs-capture-timestamp.
+   https://github.com/ietf-wg-avtcore/id-abs-capture-timestamp.
 
 Status of This Memo
 
@@ -52,11 +52,11 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 12 June 2025.
+   This Internet-Draft will expire on 9 August 2025.
 
 Copyright Notice
 
-   Copyright (c) 2024 IETF Trust and the persons identified as the
+   Copyright (c) 2025 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
@@ -77,10 +77,18 @@ Table of Contents
      4.1.  RTP header extension format
        4.1.1.  Data layout overview
        4.1.2.  Data layout details
-       4.1.3.  Further details
+     4.2.  Details of operation
+       4.2.1.  Capture system
+       4.2.2.  Intermediate systems
+       4.2.3.  End systems
+     4.3.  Estimating the NTP clock offset
+     4.4.  Timestamp interpolation
+     4.5.  Year 2036 considerations
    5.  Security Considerations
    6.  IANA Considerations
-   7.  Normative References
+   7.  References
+     7.1.  Normative References
+     7.2.  Informative References
    Acknowledgments
    Author's Address
 
@@ -100,8 +108,8 @@ Table of Contents
    clocks, where the media may have traveled over multiple network hops
    between the source and destination.
 
-   This memo describes one mechanism for providing more information to
-   make such synchronization possible.
+   This memo describes one mechanism for providing information to make
+   such synchronization possible.
 
 2.  Conventions and Definitions
 
@@ -112,6 +120,23 @@ Table of Contents
    capitals, as shown here.
 
 3.  Applicability
+
+   The Absolute Capture Time extension is used to stamp RTP packets with
+   a NTP timestamp showing when the first audio or video frame in a
+   packet was originally captured.
+
+   Together with a round-trip-time estimate at the last hop, this
+   extension allows a receiver to estimate the offset between its own
+   clock and the capturer's clock, thus providing a way to translate the
+   capture timestamp into a time in its own clock.
+
+   One usage of this functionality is to provide a way to accomplish
+   audio-to-video synchronization when RTCP-terminating intermediate
+   systems (e.g. mixers) are involved.
+
+   Another usage is to provide statistics on sender-to-recipient delay
+   in applications with multiple RTP hops without requiring clocks to be
+   synchronized.
 
    In the terminology of [RFC7667], the applicable scenarios are those
    where RTP is terminated at an intermediate system: Selective
@@ -125,12 +150,6 @@ Table of Contents
    Multicast scenarios are out of scope.
 
 4.  Absolute Capture Time
-
-   The Absolute Capture Time extension is used to stamp RTP packets with
-   a NTP timestamp showing when the first audio or video frame in a
-   packet was originally captured.  The intent of this extension is to
-   provide a way to accomplish audio-to-video synchronization when RTCP-
-   terminating intermediate systems (e.g. mixers) are involved.
 
    *Name:* "Absolute Capture Time"; "RTP Header Extension for Absolute
    Capture Time"
@@ -222,9 +241,9 @@ Table of Contents
    it means that the sending system does not have enough data to compute
    a clock offset.
 
-4.1.3.  Further details
+4.2.  Details of operation
 
-4.1.3.1.  Capture system
+4.2.1.  Capture system
 
    The capture system generates the timestamp as close as possible to
    the true capture time.  This may involve subtracting known delays in
@@ -237,7 +256,18 @@ Table of Contents
    clock offset" MUST indicate the offset between the clock used for the
    capture timestamp and the clock used for RTP Sender Reports.
 
-4.1.3.2.  Intermediate systems
+   When the media is not captured in real time, such as when sending
+   stored media, the sender can choose any reasonable start time; in
+   that case, the offset between the chosen start time and the NTP clock
+   of the sender system MUST be encoded into the "offset" value of the
+   extension.
+
+   The "capture" timestamp should then advance according to the natural
+   progression of the media; if this deviates from the NTP clock of the
+   sender system, such as on a reader stall, this change SHOULD be
+   reflected in the "offset" value.
+
+4.2.2.  Intermediate systems
 
    An intermediate system MAY compute the outgoing capture clock offset
    as follows:
@@ -246,7 +276,7 @@ Table of Contents
       packet
 
    *  Add the estimated offset between the sender's NTP clock and the
-      intermediate's NTP clock (see Section 4.1.3.4)
+      intermediate's NTP clock (see Section 4.3)
 
    This should give a reasonable estimate of the offset between the
    capture system's clock and the NTP timestamps sent in SR blocks by
@@ -257,7 +287,7 @@ Table of Contents
    using its own NTP clock as reference clock, if it wants to present
    itself as a capture system for A/V-sync purposes.
 
-4.1.3.3.  End systems
+4.2.3.  End systems
 
    A receiver can use the same algorithm as intermediate systems in
    order to compute the approximate time in the receiver's NTP clock at
@@ -271,7 +301,7 @@ Table of Contents
    capture system.  Mixers SHOULD put the most prominent CSRC as the
    first CSRC in a packet's CSRC list.
 
-4.1.3.4.  Estimating the NTP clock offset
+4.3.  Estimating the NTP clock offset
 
    The NTP clock offset can be calculated from an SR packet in the
    following way:
@@ -296,10 +326,12 @@ Table of Contents
    *  RTT variance will cause variation in offset; a smoothed value
       should be used
 
+   *  Asymmetric delays, if present, will cause biased estimates
+
    This document is not normative about how the NTP clock offset is
    estimated.
 
-4.1.3.5.  Timestamp interpolation
+4.4.  Timestamp interpolation
 
    A sender SHOULD save bandwidth by not sending abs-capture-time with
    every RTP packet.  It SHOULD still send them at regular intervals
@@ -307,7 +339,7 @@ Table of Contents
    packet loss.  Mixers SHOULD always send abs-capture-time with the
    first RTP packet after changing capture system.
 
-   A receiver SHOULD memorize the capture system (i.e.  CSRC/SSRC),
+   A receiver SHOULD memorize the capture system (i.e. CSRC/SSRC),
    capture timestamp, and RTP timestamp of the most recently received
    abs-capture-time packet on each received stream.  It can then use
    that information, in combination with RTP timestamps of packets
@@ -317,6 +349,17 @@ Table of Contents
    NTP/RTP clock drift.  This is not always true.  Senders that detect
    "jumps" between its NTP and RTP clock mappings SHOULD send abs-
    capture-time with the first RTP packet after such a thing happening.
+
+4.5.  Year 2036 considerations
+
+   [RFC5905] section 6 describes how the 32-bit unsigned seconds field
+   should be compared to a system clock, explaining how comparison of
+   times works correctly when the 64-bit unsigned seconds field wraps in
+   2036 (the beginning of NTP era 1) provided proper two's complement
+   arithmetic is used for subtractions.
+
+   For the purposes of this memo, it is sufficient to note that a
+   timestamp represents the closest timestamp in a relevant era.
 
 5.  Security Considerations
 
@@ -332,10 +375,13 @@ Table of Contents
    standardized extension, IANA is requested to perform the appropriate
    registration.
 
-   If the WG decides that this is a private extension, the URL xxxxx is
-   used to identify the extension.
+   If the WG decides that this is a private extension, the URL
+   http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time is used
+   to identify the extension.
 
-7.  Normative References
+7.  References
+
+7.1.  Normative References
 
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
@@ -347,13 +393,26 @@ Table of Contents
               Applications", STD 64, RFC 3550, DOI 10.17487/RFC3550,
               July 2003, <https://www.rfc-editor.org/rfc/rfc3550>.
 
+   [RFC5905]  Mills, D., Martin, J., Ed., Burbank, J., and W. Kasch,
+              "Network Time Protocol Version 4: Protocol and Algorithms
+              Specification", RFC 5905, DOI 10.17487/RFC5905, June 2010,
+              <https://www.rfc-editor.org/rfc/rfc5905>.
+
    [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
 
+7.2.  Informative References
+
+   [RFC7667]  Westerlund, M. and S. Wenger, "RTP Topologies", RFC 7667,
+              DOI 10.17487/RFC7667, November 2015,
+              <https://www.rfc-editor.org/rfc/rfc7667>.
+
 Acknowledgments
 
    Chen Xing, for writing the original version of this specification.
+
+   Bernard Aboba and Jonathan Lennox, for helpful comments.
 
 Author's Address
 
