@@ -3,7 +3,7 @@ title: "Absolute Capture Timestamp RTP header extension"
 abbrev: "Abs capture timestamp"
 category: info
 
-docname: draft-alvestrand-avtcore-abs-capture-time-latest
+docname: draft-ietf-avtcore-abs-capture-time-latest
 submissiontype: IETF  # also: "independent", "editorial", "IAB", or "IRTF"
 number:
 date:
@@ -20,8 +20,8 @@ venue:
   type: "Working Group"
   mail: "avt@ietf.org"
   arch: "https://mailarchive.ietf.org/arch/browse/avt/"
-  github: "alvestrand/id-abs-capture-timestamp"
-  latest: "https://alvestrand.github.io/id-abs-capture-timestamp/draft-alvestrand-avtcore-abs-capture-timestamp.html"
+  github: "ietf-wg-avtcore/id-abs-capture-timestamp"
+  latest: "https://ietf-wg-avtcore.github.io/id-abs-capture-timestamp/draft-ietf-avtcore-abs-capture-timestamp.html"
 
 author:
  -
