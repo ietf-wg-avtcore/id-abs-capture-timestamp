@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@ietf-tools/idnits": "^3.0.0-alpha.36"
+  }
+}
